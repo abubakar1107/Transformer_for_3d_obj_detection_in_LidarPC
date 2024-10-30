@@ -1,0 +1,5 @@
+# Ignore all data files
+kitti_3d_object_detection/
+*.bin
+*.txt
+*.csv
