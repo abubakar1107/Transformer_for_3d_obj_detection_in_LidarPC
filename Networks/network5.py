@@ -29,6 +29,7 @@ class PointTransformerBlockWithPE(nn.Module):
         self.norm1 = nn.LayerNorm(output_dim)
         self.norm2 = nn.LayerNorm(output_dim)
 
+
     def forward(self, x):
         # Add positional encoding to the input
         x_pe = self.positional_encoding(x)
