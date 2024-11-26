@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from pointnet_loader import load_pretrained_pointnet
+from Networks.pointnet_loader import load_pretrained_pointnet
 
 class PositionalEncoding(nn.Module):
     def __init__(self, dim, max_len=5000):
@@ -64,8 +64,10 @@ class ObjectDetectionModel(nn.Module):
         for param in self.pointnet.parameters():
             param.requires_grad = False
         
+        # print("PointNet++ output dimension:", self.pointnet.output_dim)
         # Check if the output feature dimension matches your feature_dim, adapt if needed
-        self.adapt_feature_dim = nn.Linear(self.pointnet.output_dim, feature_dim) if self.pointnet.output_dim != feature_dim else nn.Identity()
+        self.adapt_feature_dim = nn.Linear(1, feature_dim)  # Match PointNet++ output (1) to your feature_dim
+
         
         # Stack of transformer blocks
         self.transformer_blocks = nn.ModuleList([PointTransformerBlockWithPE(feature_dim, feature_dim) for _ in range(4)])
@@ -89,7 +91,7 @@ class ObjectDetectionModel(nn.Module):
 
     def forward(self, x):
         batch_size, total_points, input_dim = x.shape
-        
+        # print("Input shape:", x.shape)
         # If the total points exceed the chunk size, process in chunks
         if total_points > self.chunk_size:
             outputs = []
@@ -116,12 +118,20 @@ class ObjectDetectionModel(nn.Module):
         else:
             # Process normally if points are within the chunk size
             x = self.pointnet(x)
+            # print("PointNet++ output shape:", x.shape)
+
             x = self.adapt_feature_dim(x)
             for block in self.transformer_blocks:
                 x = block(x)
         
         # Classification and regression heads
-        class_output = self.classifier(x.mean(dim=1))  # Aggregating features across points
+        mask = (x.sum(dim=-1) != 0).float().unsqueeze(-1)  # Mask padded points
+        x = x * mask  # Set padded points to 0
+        valid_point_count = mask.sum(dim=1)  # Count non-padded points for each example
+        x_mean = x.sum(dim=1) / valid_point_count.clamp(min=1)  # Compute mean ignoring padded points
+
+        class_output = self.classifier(x.mean(dim=1))
         bbox_output = self.regressor(x.mean(dim=1))
+
         
         return class_output, bbox_output
