@@ -51,21 +51,24 @@ class KITTIDataset(Dataset):
                 elements = line.split()
                 if len(elements) < 15:
                     continue  # Skip malformed lines
-                
+
                 # Parse bounding box parameters
                 _, _, _, _, _, _, _, h, w, l, x, y, z, ry = map(float, elements[1:])
-                
-                # Filter invalid boxes
-                if x < -500 or y < -500 or z < -500 or h < 0 or w < 0 or l < 0:
-                    continue  # Skip unrealistic or placeholder values
-                
+
+                # Normalize bounding box dimensions (example: using fixed dataset bounds)
+                max_dim = 100.0  # Replace with dataset-specific max dimension
+                x, y, z = x / max_dim, y / max_dim, z / max_dim
+                h, w, l = h / max_dim, w / max_dim, l / max_dim
+
                 boxes.append((h, w, l, x, y, z, ry))
 
         if len(boxes) == 0:
             boxes.append((0, 0, 0, 0, 0, 0, 0))  # Add a placeholder if no valid boxes are found
         class_labels = [0]  # Replace with actual mapping logic as needed
+        # print(f"bbox_labels shape: {boxes[0]}")
 
         return torch.tensor(class_labels[0]), torch.tensor(boxes[0])
+
 
     def load_calibration(self, file_path):
         calib_data = {}
@@ -133,10 +136,13 @@ tl = []
 vl = []
 
 for epoch in range(num_epochs):
+    print(f"Starting Epoch {epoch + 1}/{num_epochs}")
+    
     # Training phase
     model.train()
     train_loss = 0.0
-    print("Epoch: ", epoch)
+    iteration_train_losses = []
+
     for i, (inputs, class_labels, bbox_labels, Tr_cam_to_velo) in enumerate(train_loader):
         inputs = inputs.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
         class_labels = class_labels.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
@@ -148,6 +154,8 @@ for epoch in range(num_epochs):
         # Forward pass
         class_outputs, bbox_outputs = model(inputs)
 
+        # print(f"bbox_outputs shape: {bbox_outputs.shape}")  # Should be [batch_size, 7]
+        # print(f"bbox_labels shape: {bbox_labels.shape}")   # Should be [batch_size, 7]
         # Compute the combined loss
         loss = criterion(bbox_outputs, bbox_labels, class_outputs, class_labels)
         loss = loss.sum()  # Compute the sum of the loss tensor
@@ -157,15 +165,17 @@ for epoch in range(num_epochs):
         optimizer.step()
 
         train_loss += loss.item()
-        tl.append(loss.item())
-    train_losses.append(np.mean(tl))
+        iteration_train_losses.append(loss.item())
 
-    avg_train_loss = train_loss / len(train_loader)
-    print(f"Epoch [{epoch + 1}/{num_epochs}], Train Loss: {avg_train_loss:.4f}")
+        # Print training loss for this iteration
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Iteration [{i + 1}/{len(train_loader)}], Training Loss: {loss.item():.4f}")
+
+    train_losses.extend(iteration_train_losses)
 
     # Validation phase
     model.eval()
     val_loss = 0.0
+    iteration_val_losses = []
     with torch.no_grad():
         for i, (inputs, class_labels, bbox_labels, Tr_cam_to_velo) in enumerate(val_loader):
             inputs = inputs.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
@@ -178,14 +188,17 @@ for epoch in range(num_epochs):
             # Compute the combined loss
             v_loss = criterion(bbox_outputs, bbox_labels, class_outputs, class_labels)
             v_loss = v_loss.sum()  
-            val_loss += loss.item()
-            vl.append(loss.item())
-    val_losses.append(np.mean(vl))
-    
-    avg_val_loss = val_loss / len(val_loader)
-    print(f"Epoch [{epoch + 1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}")
+
+            val_loss += v_loss.item()
+            iteration_val_losses.append(v_loss.item())
+
+            # Print validation loss for this iteration
+            print(f"Epoch [{epoch + 1}/{num_epochs}], Iteration [{i + 1}/{len(val_loader)}], Validation Loss: {v_loss.item():.4f}")
+
+    val_losses.extend(iteration_val_losses)
 
     # Checkpoint the model if validation loss is the best so far
+    avg_val_loss = val_loss / len(val_loader)
     if avg_val_loss < best_val_loss:
         best_val_loss = avg_val_loss
         torch.save(model.state_dict(), best_model_path)
@@ -195,9 +208,19 @@ print("Training complete. Best model saved as 'best_object_detection_model.pth'.
 
 # Plot the training and validation losses
 plt.figure(figsize=(10, 5))
-plt.title('Training and Validation Loss')
+plt.title('Training Loss per Iteration')
 plt.xlabel('Iteration')
 plt.ylabel('Loss')
 plt.plot(train_losses, label='Training Loss')
+plt.legend()
+plt.savefig('training_loss.png')
+plt.show()
+
+plt.figure(figsize=(10, 5))
+plt.title('Validation Loss per Iteration')
+plt.xlabel('Iteration')
+plt.ylabel('Loss')
 plt.plot(val_losses, label='Validation Loss')
+plt.legend()
+plt.savefig('validation_loss.png')
 plt.show()

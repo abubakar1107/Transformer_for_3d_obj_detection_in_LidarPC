@@ -17,7 +17,7 @@ class PositionalEncoding(nn.Module):
         return x + self.encoding[:, :seq_len, :].to(x.device)
 
 class PointTransformerBlockWithPE(nn.Module):
-    def __init__(self, input_dim, output_dim, num_heads=4):
+    def __init__(self, input_dim, output_dim, num_heads=16):
         super(PointTransformerBlockWithPE, self).__init__()
         self.self_attention = nn.MultiheadAttention(output_dim, num_heads)
         self.positional_encoding = PositionalEncoding(output_dim)
@@ -66,11 +66,11 @@ class ObjectDetectionModel(nn.Module):
         
         # print("PointNet++ output dimension:", self.pointnet.output_dim)
         # Check if the output feature dimension matches your feature_dim, adapt if needed
-        self.adapt_feature_dim = nn.Linear(1, feature_dim)  # Match PointNet++ output (1) to your feature_dim
+        self.adapt_feature_dim = nn.Linear(64, feature_dim)  # Match PointNet++ output (1) to your feature_dim
 
         
         # Stack of transformer blocks
-        self.transformer_blocks = nn.ModuleList([PointTransformerBlockWithPE(feature_dim, feature_dim) for _ in range(4)])
+        self.transformer_blocks = nn.ModuleList([PointTransformerBlockWithPE(feature_dim, feature_dim) for _ in range(16)])
         
         # Classification head
         self.classifier = nn.Sequential(
@@ -132,6 +132,9 @@ class ObjectDetectionModel(nn.Module):
 
         class_output = self.classifier(x.mean(dim=1))
         bbox_output = self.regressor(x.mean(dim=1))
+
+        bbox_output = self.regressor(x.mean(dim=1))
+        # print(f"bbox_output shape: {bbox_output.shape}")
 
         
         return class_output, bbox_output
