@@ -1,0 +1,6 @@
+torch>=1.10.0
+numpy>=1.21.0
+open3d>=0.15.2
+matplotlib>=3.4.0
+tensorflow>=2.5.0
+tensorflow-datasets>=4.0.0
