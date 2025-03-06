@@ -6,10 +6,10 @@ This project focuses on 3D object detection using **3D perception data** from th
 
 The following image illustrates the architecture of the **Transformer-based 3D Object Detection Model** used in this project:
 
-![Model Architecture](picture4.png)
+![Model Architecture](Picture4.png)
 
 The following image illustrates the 3D objects detected 
-![3Ddetection](picture3.png)
+![3Ddetection](Picture3.jpg)
 
 The model consists of:
 - A **pretrained PointNet++** encoder for extracting higher-dimensional features.
