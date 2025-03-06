@@ -1,10 +1,26 @@
-# Custum Transformer model for 3d object detection
+# Custom Transformer Model for 3D Object Detection
 
-This project focuses on 3D object detection using LiDAR data from the KITTI dataset. It includes data preprocessing, model training, and visualization of results.
+This project focuses on 3D object detection using **3D perception data** from the KITTI dataset. It includes data preprocessing, model training, and visualization of results.
+
+## Model Architecture
+
+The following image illustrates the architecture of the **Transformer-based 3D Object Detection Model** used in this project:
+
+![Model Architecture](picture4.png)
+
+The following image illustrates the 3D objects detected 
+![3Ddetection](picture3.png)
+
+The model consists of:
+- A **pretrained PointNet++** encoder for extracting higher-dimensional features.
+- **Multi-head attention blocks** for learning spatial relationships in 3D data.
+- **Fully connected layers** for classification and bounding box regression.
+- Outputs include **bounding boxes and classification results**.
 
 ## Models
 
-The models are located in the `Networks` folder. The final model is implemented in `network5.py`. You can modify the model architecture, such as the number of heads and blocks, directly in this file.
+The models are located in the `Networks` folder. The final model is implemented in `network5.py`.  
+You can modify the model architecture, such as the number of heads and blocks, directly in this file.
 
 ## Training
 
